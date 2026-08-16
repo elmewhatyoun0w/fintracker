@@ -6,7 +6,7 @@ const AUTH_KEY = "fintracker_authenticated";
 
 export default function PasswordProtect({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isSetup, setIsSetup] = useState(false);
+  const [hasPassword, setHasPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -16,18 +16,15 @@ export default function PasswordProtect({ children }: { children: React.ReactNod
   useEffect(() => {
     const savedPassword = localStorage.getItem(PASSWORD_KEY);
     const authenticated = sessionStorage.getItem(AUTH_KEY);
-    
-    if (!savedPassword) {
-      // Пароль не установлен - показываем приложение
+
+    if (savedPassword && authenticated === "true") {
       setIsAuthenticated(true);
-      setIsSetup(false);
-    } else if (authenticated === "true") {
-      // Уже вошли в этой сессии
-      setIsAuthenticated(true);
-      setIsSetup(true);
+      setHasPassword(true);
+    } else if (savedPassword) {
+      setHasPassword(true);
+      setIsAuthenticated(false);
     } else {
-      // Нужно ввести пароль
-      setIsSetup(true);
+      setHasPassword(false);
       setIsAuthenticated(false);
     }
     setLoading(false);
@@ -46,7 +43,7 @@ export default function PasswordProtect({ children }: { children: React.ReactNod
 
   const handleSetupPassword = () => {
     if (newPassword.length < 4) {
-      setError("Пароль должен быть минимум 4 символа");
+      setError("Минимум 4 символа");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -56,13 +53,11 @@ export default function PasswordProtect({ children }: { children: React.ReactNod
     localStorage.setItem(PASSWORD_KEY, newPassword);
     sessionStorage.setItem(AUTH_KEY, "true");
     setIsAuthenticated(true);
-    setIsSetup(true);
-    setError("");
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
       </div>
     );
@@ -73,18 +68,19 @@ export default function PasswordProtect({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-        <div className="text-center mb-6">
-          <span className="text-4xl">🔐</span>
-          <h1 className="text-2xl font-bold mt-4">FinTracker</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-blue-50 dark:from-slate-900 dark:to-slate-800 p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 w-full max-w-md border border-slate-200 dark:border-slate-700">
+        <div className="text-center mb-8">
+          <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-4xl">💰</span>
+          </div>
+          <h1 className="text-2xl font-bold">FinTracker</h1>
           <p className="text-slate-500 mt-2">
-            {isSetup ? "Введите пароль для входа" : "Установите пароль для защиты данных"}
+            {hasPassword ? "Введите пароль для входа" : "Защитите свои данные паролем"}
           </p>
         </div>
 
-        {isSetup ? (
-          // Форма входа
+        {hasPassword ? (
           <div className="space-y-4">
             <input
               type="password"
@@ -92,23 +88,19 @@ export default function PasswordProtect({ children }: { children: React.ReactNod
               value={password}
               onChange={e => { setPassword(e.target.value); setError(""); }}
               onKeyDown={e => e.key === "Enter" && handleLogin()}
-              className="w-full border border-slate-300 rounded-lg px-4 py-3 text-center text-lg"
+              className="w-full border border-slate-300 rounded-lg px-4 py-3 text-lg text-center"
               autoFocus
             />
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button
-              onClick={handleLogin}
-              className="w-full bg-blue-500 text-white py-3 rounded-lg font-medium hover:bg-blue-600"
-            >
-              Войти
+            {error && <p className="text-red-500 text-sm text-center bg-red-50 dark:bg-red-900/30 py-2 rounded-lg">{error}</p>}
+            <button onClick={handleLogin} className="w-full bg-blue-500 text-white py-3 rounded-lg font-medium hover:bg-blue-600">
+              🔓 Войти
             </button>
           </div>
         ) : (
-          // Форма установки пароля
           <div className="space-y-4">
             <input
               type="password"
-              placeholder="Придумайте пароль"
+              placeholder="Придумайте пароль (мин. 4 символа)"
               value={newPassword}
               onChange={e => { setNewPassword(e.target.value); setError(""); }}
               className="w-full border border-slate-300 rounded-lg px-4 py-3"
@@ -122,22 +114,15 @@ export default function PasswordProtect({ children }: { children: React.ReactNod
               onKeyDown={e => e.key === "Enter" && handleSetupPassword()}
               className="w-full border border-slate-300 rounded-lg px-4 py-3"
             />
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <button
-              onClick={handleSetupPassword}
-              className="w-full bg-blue-500 text-white py-3 rounded-lg font-medium hover:bg-blue-600"
-            >
-              Установить пароль
+            {error && <p className="text-red-500 text-sm text-center bg-red-50 dark:bg-red-900/30 py-2 rounded-lg">{error}</p>}
+            <button onClick={handleSetupPassword} className="w-full bg-blue-500 text-white py-3 rounded-lg font-medium hover:bg-blue-600">
+              🔐 Установить пароль
             </button>
-            <p className="text-xs text-slate-400 text-center">
-              Или оставьте пустым и нажмите кнопку ниже
-            </p>
-            <button
-              onClick={() => setIsAuthenticated(true)}
-              className="w-full bg-slate-100 text-slate-600 py-2 rounded-lg text-sm hover:bg-slate-200"
-            >
-              Продолжить без пароля
-            </button>
+            <div className="text-center">
+              <button onClick={() => setIsAuthenticated(true)} className="text-sm text-slate-400 hover:text-slate-600 underline">
+                Пропустить (без пароля)
+              </button>
+            </div>
           </div>
         )}
       </div>

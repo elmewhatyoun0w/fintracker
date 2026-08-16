@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getDashboard } from "@/lib/api";
 import { formatMoney, getCurrentMonth } from "@/lib/utils";
 import MonthSelector from "./MonthSelector";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
 
 export default function Dashboard() {
   const [month, setMonth] = useState(getCurrentMonth());
@@ -18,6 +19,14 @@ export default function Dashboard() {
 
   const currency = data.settings?.currency || "₽";
   const monthlyIncome = parseFloat(data.settings?.monthlyIncome || "0");
+  const today = new Date().getDate();
+
+  // Напоминания о платежах
+  const upcomingPayments = data.debts
+    ?.filter((d: any) => d.dueDay && !d.isPaidOff)
+    ?.map((d: any) => ({ ...d, daysLeft: d.dueDay >= today ? d.dueDay - today : 30 - today + d.dueDay }))
+    ?.sort((a: any, b: any) => a.daysLeft - b.daysLeft)
+    ?.slice(0, 5) || [];
 
   return (
     <div className="space-y-6">
@@ -45,6 +54,30 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* 🔔 Напоминания о платежах */}
+      {upcomingPayments.length > 0 && (
+        <div className="bg-amber-50 rounded-xl p-6 border border-amber-200">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            🔔 Ближайшие платежи
+          </h3>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {upcomingPayments.map((debt: any) => (
+              <div key={debt.id} className={`p-4 rounded-lg border ${debt.daysLeft <= 3 ? 'bg-red-100 border-red-300' : debt.daysLeft <= 7 ? 'bg-amber-100 border-amber-300' : 'bg-white border-slate-200'}`}>
+                <div className="flex justify-between items-start mb-2">
+                  <span className="font-medium">{debt.name}</span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${debt.daysLeft <= 3 ? 'bg-red-500 text-white' : debt.daysLeft <= 7 ? 'bg-amber-500 text-white' : 'bg-slate-200'}`}>
+                    {debt.daysLeft === 0 ? 'Сегодня!' : debt.daysLeft === 1 ? 'Завтра' : `${debt.daysLeft} дн.`}
+                  </span>
+                </div>
+                <p className="text-lg font-bold text-slate-800">{formatMoney(parseFloat(debt.minimumPayment), currency)}</p>
+                <p className="text-xs text-slate-500">до {debt.dueDay} числа</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Бюджет 50/30/20 */}
       {monthlyIncome > 0 && (
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
           <h3 className="text-lg font-semibold mb-4">🎯 Бюджет 50/30/20</h3>
@@ -70,6 +103,25 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* 📈 График расходов по категориям */}
+      {data.expensesByCategory && data.expensesByCategory.length > 0 && (
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+          <h3 className="text-lg font-semibold mb-4">📈 Расходы по категориям</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.expensesByCategory.slice(0, 8).map((c: any) => ({ name: c.categoryName || 'Другое', сумма: parseFloat(c.total) }))}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(value: any) => formatMoney(value, currency)} />
+                <Bar dataKey="сумма" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Последние операции */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
         <h3 className="text-lg font-semibold mb-4">🕐 Последние операции</h3>
         {data.recentTransactions.length > 0 ? (
